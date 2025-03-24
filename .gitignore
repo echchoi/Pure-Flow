@@ -1,3 +1,6 @@
 /.DS_Store
 /.Documents
-/python/.venv
+python/.venv
+python/.ipynb_checkpoints
+python/.vscode
+python/.env
