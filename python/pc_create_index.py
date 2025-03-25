@@ -1,36 +1,48 @@
 from pinecone import (
     Pinecone,
-    ServerlessSpec,
+    ServerlessSpec
 )
 from dotenv import load_dotenv
 import os
 
 # Load environment variables
-load_dotenv(".env")
+load_dotenv()
 
 # Setup Pinecone
-NAMESPACE = "default"
 pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+sparse_index_name = os.environ.get("PINECONE_SPARSE_INDEX_NAME")
+dense_index_name = os.environ.get("PINECONE_DENSE_INDEX_NAME")
 
-# Create index
-if "sparse-index" not in pc.list_indexes():
-    pc.create_index(
-        name="sparse-index",
-        dimension=512,
-        metric="dotproduct",
-        spec=ServerlessSpec(cloud="aws", region="us-east-1")
-    )
-    sparse_index = pc.Index("sparse-index")
+# Check if sparse "):indexes exist
+if pc.has_index(sparse_index_name):
+    pc.delete_index(sparse_index_name)  # Delete index if it exists
+
+# Create sparse index
+pc.create_index_for_model(
+    name=sparse_index_name,
+    cloud="aws",
+    region="us-east-1",
+    embed={
+        "model":"pinecone-sparse-english-v0",
+        "field_map":{"text": "chunk_text"}
+    }
+)
+sparse_index = pc.Index(sparse_index_name)
+print(sparse_index.describe_index_stats())
+
+# Check if sparse indexes exist
+if pc.has_index(dense_index_name):
+    pc.delete_index(dense_index_name)  # Delete index if it exists
 
 # Create dense index
-if "dense-index" not in pc.list_indexes():
-    pc.create_index(
-        name="dense-index",
-        dimension=1024,  # llama-text-embed-v2 output size
-        metric="cosine",  # Common for dense vectors
-        spec=ServerlessSpec(cloud="aws", region="us-east-1")
-    )
-    dense_index = pc.Index("dense-index")  # Get index handle
-
-print(f"Sparse index created: {sparse_index}")
-print(f"Dense index created: {dense_index}")
+pc.create_index_for_model(
+    name=dense_index_name,
+    cloud="aws",
+    region="us-east-1",
+    embed={
+        "model":"multilingual-e5-large",
+        "field_map":{"text": "chunk_text"}
+    }
+)
+dense_index = pc.Index(dense_index_name)  # Get index handle
+print(dense_index.describe_index_stats())
